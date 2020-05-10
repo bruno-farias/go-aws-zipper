@@ -12,3 +12,10 @@ A go project to create zip files from AWS S3
 	]
 }
 ``
+
+# Run
+Type on terminal: `docker-compose up`
+
+# TODO:
+- add tests
+- create a version to run on AWS Lambda
