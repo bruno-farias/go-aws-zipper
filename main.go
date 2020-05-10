@@ -13,9 +13,10 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"path/filepath"
 	"time"
 )
+
+var requestJson map[string]interface{}
 
 func init() {
 	if err := godotenv.Load(); err != nil {
@@ -28,11 +29,6 @@ func init() {
 	_ = os.Setenv("AWS_SECRET_ACCESS_KEY", AwsSecretAccessKey)
 	_ = os.Setenv("AWS_REGION", AwsRegion)
 }
-
-var requestJson map[string]interface{}
-var dirname string
-var zipName string
-var output string
 
 func exitErrorf(msg string, args ...interface{}) {
 	_, _ = fmt.Fprintf(os.Stderr, msg+"\n", args...)
@@ -52,14 +48,16 @@ func responseParser(w http.ResponseWriter, r *http.Request) (map[string]interfac
 func download(w http.ResponseWriter, r *http.Request) {
 	requestJson, _ := responseParser(w, r)
 	bucket := requestJson["bucket"].(string)
-	zipName = requestJson["zip_name"].(string)
+	zipName := requestJson["zip_name"].(string)
 	items := requestJson["items"]
-	dirname = "downloads/" + zipName
+	dirname := "downloads/" + zipName
+	output := "zip/" + zipName + ".zip"
 
 	for _, item := range items.([]interface{}) {
 		_ = os.Mkdir(dirname, 0755)
 		file, err := os.Create(dirname + "/" + item.(string))
 		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
 			exitErrorf("Unable to open file %q, %v", item, err)
 		}
 
@@ -74,52 +72,23 @@ func download(w http.ResponseWriter, r *http.Request) {
 				Key:    aws.String(item.(string)),
 			})
 		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
 			exitErrorf("Unable to download item %q, %v", item, err)
 		}
 
 		fmt.Println("Downloaded", file.Name(), numBytes, "bytes")
 	}
-	createZipFile()
+	zipper.CreateZipFile(dirname, output)
 	file, _ := os.Open(output)
 	//remove zip
 	defer os.Remove(output)
 
 	w.Header().Set("Content-Type", "application/octet-stream")
-	w.Header().Set("Content-Disposition", "attachment; filename=" + zipName + ".zip")
+	w.Header().Set("Content-Disposition", "attachment; filename="+zipName+".zip")
 	w.Header().Set("Content-Transfer-Encoding", "binary")
 	w.Header().Set("Expires", "0")
 
-	http.ServeContent(w, r, zipName + ".zip", time.Now(), file)
-}
-
-func visit(files *[]string) filepath.WalkFunc {
-	return func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			log.Fatal(err)
-		}
-		*files = append(*files, path)
-		return nil
-	}
-}
-
-func createZipFile() {
-	zipName := requestJson["zip_name"].(string)
-	output = "zip/" + zipName + ".zip"
-	var files []string
-
-	err := filepath.Walk(dirname, visit(&files))
-	if err != nil {
-		panic(err)
-	}
-	// remove dir and files
-	defer os.RemoveAll(dirname)
-
-	// removes folder from slice
-	files = files[1:]
-
-	if err := zipper.ZipFiles(output, files); err != nil {
-		log.Fatal(err)
-	}
+	http.ServeContent(w, r, zipName+".zip", time.Now(), file)
 }
 
 func main() {

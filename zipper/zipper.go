@@ -3,13 +3,33 @@ package zipper
 import (
 	"archive/zip"
 	"io"
+	"log"
 	"os"
+	"path/filepath"
 )
 
-// ZipFiles compresses one or many files into a single zip archive file.
+func CreateZipFile(sourceDir, output string) {
+	var files []string
+
+	err := filepath.Walk(sourceDir, visit(&files))
+	if err != nil {
+		panic(err)
+	}
+	// remove dir and files
+	defer os.RemoveAll(sourceDir)
+
+	// removes folder from slice
+	files = files[1:]
+
+	if err := zipFiles(output, files); err != nil {
+		log.Fatal(err)
+	}
+}
+
+// zipFiles compresses one or many files into a single zip archive file.
 // Param 1: filename is the output zip file's name.
 // Param 2: files is a list of files to add to the zip.
-func ZipFiles(filename string, files []string) error {
+func zipFiles(filename string, files []string) error {
 
 	newZipFile, err := os.Create(filename)
 	if err != nil {
@@ -22,14 +42,14 @@ func ZipFiles(filename string, files []string) error {
 
 	// Add files to zip
 	for _, file := range files {
-		if err = AddFileToZip(zipWriter, file); err != nil {
+		if err = addFileToZip(zipWriter, file); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func AddFileToZip(zipWriter *zip.Writer, filename string) error {
+func addFileToZip(zipWriter *zip.Writer, filename string) error {
 
 	fileToZip, err := os.Open(filename)
 	if err != nil {
@@ -62,4 +82,14 @@ func AddFileToZip(zipWriter *zip.Writer, filename string) error {
 	}
 	_, err = io.Copy(writer, fileToZip)
 	return err
+}
+
+func visit(files *[]string) filepath.WalkFunc {
+	return func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			log.Fatal(err)
+		}
+		*files = append(*files, path)
+		return nil
+	}
 }
