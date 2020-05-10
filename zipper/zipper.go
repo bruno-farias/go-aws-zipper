@@ -8,17 +8,15 @@ import (
 	"path/filepath"
 )
 
-func CreateZipFile(sourceSubDir, output string) {
+func CreateZipFile(dirname, output string) {
 	var files []string
-	// build full directory path
-	fullDir := "downloads/" + sourceSubDir
 
-	err := filepath.Walk(fullDir, visit(&files))
+	err := filepath.Walk(dirname, visit(&files))
 	if err != nil {
 		panic(err)
 	}
 	// remove sub dir and files
-	defer os.RemoveAll(sourceSubDir)
+	defer os.RemoveAll(dirname)
 
 	// removes folder from slice
 	files = files[1:]

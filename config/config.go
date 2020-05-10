@@ -16,4 +16,6 @@ func SetEnvConfig() {
 	_ = os.Setenv("AWS_ACCESS_KEY_ID", AwsAccessKeyId)
 	_ = os.Setenv("AWS_SECRET_ACCESS_KEY", AwsSecretAccessKey)
 	_ = os.Setenv("AWS_REGION", AwsRegion)
+	os.Mkdir("downloads", 0755)
+	os.Mkdir("zip", 0755)
 }

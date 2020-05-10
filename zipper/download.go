@@ -46,7 +46,7 @@ func Download(w http.ResponseWriter, r *http.Request) {
 
 		fmt.Println("Downloaded", file.Name(), numBytes, "bytes")
 	}
-	CreateZipFile(request.ZipName, output)
+	CreateZipFile(dirname, output)
 	file, _ := os.Open(output)
 
 	//remove zip
